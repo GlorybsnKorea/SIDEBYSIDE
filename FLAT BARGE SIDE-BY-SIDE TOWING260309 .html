@@ -3,11 +3,19 @@
 <head>
 <meta charset="UTF-8">
 <title>Flat Barge Side-by-Side Towing Simulator</title>
-<style>
-*{box-sizing:border-box;margin:0;padding:0;}
-html,body{width:100%;height:100%;background:#030c1a;color:#e2e8f0;font-family:'Courier New',monospace;overflow:hidden;}
-header{text-align:center;padding:5px 0 3px;background:#020810;border-bottom:1px solid rgba(40,80,140,0.3);}
-h1{font-size:14px;color:#fbbf24;letter-spacing:2px;}
+<style>#barge-sim{
+  box-sizing:border-box;
+  width:100%;
+  background:#030c1a;
+  color:#e2e8f0;
+  font-family:'Courier New',monospace;
+  overflow:hidden;
+  position:relative;
+}
+#barge-sim *{box-sizing:border-box;margin:0;padding:0;}
+
+#barge-sim header{text-align:center;padding:5px 0 3px;background:#020810;border-bottom:1px solid rgba(40,80,140,0.3);}
+#barge-sim h1{font-size:14px;color:#fbbf24;letter-spacing:2px;}
 .sub{font-size:8px;color:#243550;letter-spacing:2px;}
 /* NEW: vertical stack layout */
 .wrap{display:flex;flex-direction:column;width:100%;height:calc(100vh - 40px);}
@@ -28,7 +36,7 @@ h1{font-size:14px;color:#fbbf24;letter-spacing:2px;}
 .slh{display:flex;justify-content:space-between;margin-bottom:1px;}
 .sll{color:#6a8aaa;font-size:9px;}
 .slv{font-size:10px;font-weight:bold;}
-input[type=range]{width:100%;cursor:pointer;}
+#barge-sim input[type=range]{width:100%;cursor:pointer;}
 .propwrap{display:flex;gap:5px;margin-bottom:5px;}
 .propbox{flex:1;background:rgba(0,0,0,0.45);border-radius:6px;padding:5px 4px;}
 .proptitle{text-align:center;color:#5a7a9a;font-size:9px;margin-bottom:2px;}
@@ -59,6 +67,7 @@ input[type=range]{width:100%;cursor:pointer;}
 </style>
 </head>
 <body>
+<div id="barge-sim">
 <header>
   <div class="sub">FLAT BARGE · SIDE-BY-SIDE TOWING SIMULATOR &nbsp;|&nbsp; HEADING LEFT→RIGHT</div>
   <h1>⚓ FLAT BARGE SIDE-BY-SIDE TOWING SIMULATOR</h1>
@@ -136,6 +145,13 @@ input[type=range]{width:100%;cursor:pointer;}
       <div class="warnbox" id="warningBox" style="display:none"></div>
     </div>
 
+    <!-- Hint text fills empty sidebar space to the right of panels -->
+    <div style="flex:1;display:flex;align-items:center;padding:0 20px;">
+      <span style="color:#00e5ff;font-size:13px;font-family:'Courier New',monospace;letter-spacing:1.5px;line-height:1.8;font-weight:bold;text-shadow:0 0 8px rgba(0,229,255,0.5);">
+        💡 During all simulator operation tests,<br>you can freely adjust the steering angle at any time.
+      </span>
+    </div>
+
   </div>
 
   <!-- 프리셋 가로 1열 바 — 캔버스 바로 위 -->
@@ -148,7 +164,9 @@ input[type=range]{width:100%;cursor:pointer;}
     <button class="pbtn" id="pr4" onclick="preset(-72,-42,4,'indep')"  style="color:#fb923c; flex:1;min-width:130px;margin:0;"><div class="pbtnlbl">Astern in Narrow Channel</div><div class="pbtndesc">S: AS 72 / P: AS 42</div></button>
   </div>
 
-  <div class="cv-col"><canvas id="cv"></canvas></div>
+  <div class="cv-col" style="position:relative;">
+    <canvas id="cv"></canvas>
+  </div>
 </div>
 
 <script>
@@ -964,5 +982,6 @@ document.getElementById('helpModal').addEventListener('click',function(e){
   if(e.target===this) this.style.display='none';
 });
 </script>
+</div>
 </body>
 </html>
