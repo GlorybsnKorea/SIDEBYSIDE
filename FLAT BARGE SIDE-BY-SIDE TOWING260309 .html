@@ -475,7 +475,7 @@ function physics(dt){
     /* Independent: differential thrust creates yaw
        P:AH90 / S:AH75 → straight (k=1.2: 1.2×75−90=0)                  */
     const k = net0 >= 0 ? 1.2 : 1.2 + (0.44-1.2)*Math.min(1,Math.abs(net0));
-    yawDPS = Math.max(-6, Math.min(6, (k * st.propS - st.propP) * 0.042));
+    yawDPS = Math.max(-6, Math.min(6, (st.propP - k * st.propS) * 0.042));
   }
   st.heading = ((st.heading + yawDPS*dt) % 360 + 360) % 360;
 
