@@ -1,0 +1,968 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>Flat Barge Side-by-Side Towing Simulator</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{width:100%;height:100%;background:#030c1a;color:#e2e8f0;font-family:'Courier New',monospace;overflow:hidden;}
+header{text-align:center;padding:5px 0 3px;background:#020810;border-bottom:1px solid rgba(40,80,140,0.3);}
+h1{font-size:14px;color:#fbbf24;letter-spacing:2px;}
+.sub{font-size:8px;color:#243550;letter-spacing:2px;}
+/* NEW: vertical stack layout */
+.wrap{display:flex;flex-direction:column;width:100%;height:calc(100vh - 40px);}
+/* Controls strip - horizontal scroll row below header */
+.sidebar{width:100%;flex-shrink:0;overflow-x:auto;overflow-y:hidden;padding:5px 7px;display:flex;flex-direction:row;gap:6px;background:#020a18;border-bottom:1px solid rgba(40,80,140,0.28);align-items:flex-start;}
+.sidebar::-webkit-scrollbar{height:4px;}
+.sidebar::-webkit-scrollbar-thumb{background:rgba(40,80,140,0.4);border-radius:2px;}
+/* Canvas fills remaining space */
+.cv-col{flex:1 1 0;min-width:0;min-height:0;position:relative;}
+#cv{display:block;width:100%;height:100%;}
+/* Panels now fixed-width cards in horizontal row */
+.panel{background:rgba(5,18,42,0.97);border-radius:7px;padding:7px;flex-shrink:0;}
+.ptitle{font-size:9px;font-weight:bold;letter-spacing:2px;text-transform:uppercase;margin-bottom:5px;padding-bottom:4px;}
+.irow{display:flex;justify-content:space-between;margin-bottom:3px;align-items:center;}
+.ilabel{color:#4a6a85;font-size:9px;}
+.ival{font-size:10px;font-weight:bold;}
+.slw{margin-bottom:5px;}
+.slh{display:flex;justify-content:space-between;margin-bottom:1px;}
+.sll{color:#6a8aaa;font-size:9px;}
+.slv{font-size:10px;font-weight:bold;}
+input[type=range]{width:100%;cursor:pointer;}
+.propwrap{display:flex;gap:5px;margin-bottom:5px;}
+.propbox{flex:1;background:rgba(0,0,0,0.45);border-radius:6px;padding:5px 4px;}
+.proptitle{text-align:center;color:#5a7a9a;font-size:9px;margin-bottom:2px;}
+
+.propstat{text-align:center;border-radius:4px;padding:2px 0;font-weight:bold;font-size:10px;margin:3px 0;}
+.propdir{display:flex;justify-content:space-between;}
+.btn{padding:6px 0;border-radius:5px;cursor:pointer;font-family:monospace;font-weight:bold;font-size:11px;border:none;width:100%;}
+.btnpair{display:flex;gap:5px;margin-bottom:6px;}
+.btnrun{background:rgba(34,197,94,0.14);border:1.5px solid #22c55e;color:#4ade80;}
+.btnstop{background:rgba(239,68,68,0.14);border:1.5px solid #ef4444;color:#f87171;}
+.btnreset{background:rgba(100,116,139,0.14);border:1.5px solid #475569;color:#94a3b8;}
+.pbtn{display:block;width:100%;margin-bottom:3px;padding:4px 7px;border-radius:5px;cursor:pointer;text-align:left;font-family:monospace;font-size:10px;border:1px solid #1e3a55;background:rgba(255,255,255,0.02);}
+.pbtnlbl{font-weight:bold;}
+.pbtndesc{font-size:8px;color:#3a5a75;margin-top:1px;}
+
+.saferow{margin-top:5px;padding:4px 8px;border-radius:5px;display:flex;justify-content:space-between;align-items:center;}
+.sep{color:#1e3a55;font-size:8px;letter-spacing:1px;margin-bottom:3px;margin-top:2px;}
+.warnbox{background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:4px;padding:4px 7px;margin-top:4px;font-size:8px;color:#f87171;line-height:1.5;}
+.tabrow{display:flex;gap:4px;margin-bottom:5px;}
+.tab{flex:1;padding:3px 0;border-radius:4px;cursor:pointer;font-family:monospace;font-size:9px;text-align:center;border:1px solid #1e3a55;color:#4a6a85;background:rgba(0,0,0,0.3);}
+.tab.active{border-color:#5aabff;color:#5aabff;background:rgba(90,171,255,0.1);}
+.infobox{background:rgba(251,191,36,0.07);border:1px solid rgba(251,191,36,0.2);border-radius:4px;padding:3px 7px;margin-top:3px;font-size:8px;color:#fbbf24;line-height:1.5;}
+.spec-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:5px;}
+.spec-item{background:rgba(0,0,0,0.4);border-radius:4px;padding:4px 6px;border:1px solid rgba(40,80,140,0.28);}
+.spec-label{font-size:8px;color:#4a6a85;margin-bottom:1px;}
+.spec-val{font-size:11px;font-weight:bold;}
+.spec-shift{background:rgba(192,132,252,0.07);border:1px solid rgba(192,132,252,0.22);border-radius:4px;padding:4px 7px;margin-top:4px;display:flex;justify-content:space-between;align-items:center;}
+</style>
+</head>
+<body>
+<header>
+  <div class="sub">FLAT BARGE · SIDE-BY-SIDE TOWING SIMULATOR &nbsp;|&nbsp; HEADING LEFT→RIGHT</div>
+  <h1>⚓ FLAT BARGE SIDE-BY-SIDE TOWING SIMULATOR</h1>
+</header>
+<div class="wrap">
+  <div class="sidebar">
+
+    <!-- ② 추진기 제어 -->
+    <div class="panel" style="width:270px;border:1px solid rgba(34,197,94,0.14)">
+      <div class="ptitle" style="color:#22c55e;border-bottom:1px solid rgba(34,197,94,0.18)">🔧 PROPELLER CONTROL</div>
+      <div class="tabrow">
+        <div class="tab active" id="tabIndep" onclick="setMode('indep')">Independent</div>
+        <div class="tab" id="tabCombo" onclick="setMode('combo')">Combination</div>
+      </div>
+      <div id="modeIndep">
+        <div class="propwrap">
+          <div class="propbox">
+            <div class="proptitle">STARBOARD (S)</div>
+            <div class="propstat" id="sStatus" style="background:rgba(71,85,105,0.18);color:#475569;font-size:13px;padding:8px 4px;text-align:center;border-radius:5px;font-weight:bold;letter-spacing:1px">STOP</div>
+            <input type="range" id="propS" min="-90" max="90" value="0" style="accent-color:#475569">
+            <div class="propdir"><span style="color:#f87171;font-size:8px">◄ AS</span><span style="color:#4ade80;font-size:8px">AH ►</span></div>
+          </div>
+          <div class="propbox">
+            <div class="proptitle">PORT (P)</div>
+            <div class="propstat" id="pStatus" style="background:rgba(71,85,105,0.18);color:#475569;font-size:13px;padding:8px 4px;text-align:center;border-radius:5px;font-weight:bold;letter-spacing:1px">STOP</div>
+            <input type="range" id="propP" min="-90" max="90" value="0" style="accent-color:#475569">
+            <div class="propdir"><span style="color:#f87171;font-size:8px">◄ AS</span><span style="color:#4ade80;font-size:8px">AH ►</span></div>
+          </div>
+        </div>
+      </div>
+      <div id="modeCombo" style="display:none">
+        <div class="slw">
+          <div class="slh"><span class="sll">Main Engine Output</span><span class="slv" id="comboPow" style="color:#4ade80">0 RPM</span></div>
+          <input type="range" id="comboBase" min="-90" max="90" value="0" style="accent-color:#4ade80">
+          <div class="propdir"><span style="color:#f87171;font-size:8px">◄ ASTERN</span><span style="color:#4ade80;font-size:8px">AHEAD ►</span></div>
+        </div>
+        <div class="slw" style="margin-top:4px">
+          <div class="slh"><span class="sll">Combination Steering Angle</span><span class="slv" id="comboAngle" style="color:#fbbf24">0°</span></div>
+          <input type="range" id="comboHandle" min="-90" max="90" value="0" style="accent-color:#fbbf24">
+          <div class="propdir">
+            <span style="color:#60a5fa;font-size:8px">◄ PORT 90°</span>
+            <span style="color:#94a3b8;font-size:8px">0°</span>
+            <span style="color:#fbbf24;font-size:8px">STBD 90° ►</span>
+          </div>
+        </div>
+        <div class="infobox" id="comboHint">Both AH 90 + Handle S 10~13 → Straight Ahead</div>
+        <div class="propwrap" style="margin-top:5px">
+          <div class="propbox">
+            <div class="proptitle">STBD (S) — Steering Angle</div>
+            <div class="propstat" id="sStatus2" style="background:rgba(71,85,105,0.18);color:#475569;font-size:13px;padding:8px 4px;text-align:center;border-radius:5px;font-weight:bold;letter-spacing:1px">0°</div>
+          </div>
+          <div class="propbox">
+            <div class="proptitle">PORT (P) — Steering Angle</div>
+            <div class="propstat" id="pStatus2" style="background:rgba(71,85,105,0.18);color:#475569;font-size:13px;padding:8px 4px;text-align:center;border-radius:5px;font-weight:bold;letter-spacing:1px">0°</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ③ 시뮬레이션 제어 -->
+    <div class="panel" style="width:190px;border:1px solid rgba(148,163,184,0.14)">
+      <div class="ptitle" style="color:#94a3b8;border-bottom:1px solid rgba(148,163,184,0.18)">▶ SIMULATION CONTROL</div>
+      <div class="btnpair">
+        <button class="btn btnrun" id="btnRun" onclick="toggleRun()">▶ START</button>
+        <button class="btn btnreset" onclick="doReset()">↺ RESET</button>
+      </div>
+      <button onclick="toggleHelp()" style="width:100%;margin:4px 0 2px;padding:5px;background:rgba(96,165,250,0.12);border:1px solid rgba(96,165,250,0.35);border-radius:5px;color:#60a5fa;font-size:9px;font-weight:bold;letter-spacing:1px;cursor:pointer;">📖 HOW TO USE</button>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px;margin-top:4px;">
+        <div class="irow"><span class="ilabel">Heading</span><span class="ival" id="sHdg" style="color:#fbbf24">90°</span></div>
+        <div class="irow"><span class="ilabel">Yaw Rate</span><span class="ival" id="sYaw" style="color:#c084fc">0°/s</span></div>
+        <div class="irow"><span class="ilabel">Drift</span><span class="ival" id="sDrift" style="color:#f97316">0°</span></div>
+        <div class="irow"><span class="ilabel">Distance</span><span class="ival" id="sDist" style="color:#38bdf8">0m</span></div>
+      </div>
+      <div class="warnbox" id="warningBox" style="display:none"></div>
+    </div>
+
+  </div>
+
+  <!-- 프리셋 가로 1열 바 — 캔버스 바로 위 -->
+  <div id="presetBar" style="width:100%;flex-shrink:0;display:flex;flex-direction:row;align-items:stretch;gap:0;background:#010812;border-bottom:1px solid rgba(244,114,182,0.2);padding:3px 6px;overflow-x:auto;">
+    <span style="color:#f472b6;font-size:8px;font-weight:bold;letter-spacing:1px;white-space:nowrap;margin-right:8px;align-self:center;">📋 PRESETS</span>
+    <button class="pbtn" id="pr0" onclick="preset(75,90,0,'indep')"   style="color:#4ade80; flex:1;min-width:130px;margin:0 3px 0 0;"><div class="pbtnlbl">Straight Ahead</div><div class="pbtndesc">P: AH 90 / S: AH 75</div></button>
+    <button class="pbtn" id="pr1" onclick="presetCombo(90,12,1)"       style="color:#60a5fa; flex:1;min-width:150px;margin:0 3px 0 0;"><div class="pbtnlbl">Straight (Combination)</div><div class="pbtndesc">Both AH 90 + Handle S 10~13</div></button>
+    <button class="pbtn" id="pr2" onclick="emergencyStopSequence(-90,-52,2)"  style="color:#fb923c; flex:1;min-width:140px;margin:0 3px 0 0;"><div class="pbtnlbl">Emergency Stop (Mod.Speed)</div><div class="pbtndesc">AH→AS: S:90 / P:45~60</div></button>
+    <button class="pbtn" id="pr3" onclick="emergencyStopSequence(-90,-40,3)"  style="color:#ef4444; flex:1;min-width:140px;margin:0 3px 0 0;"><div class="pbtnlbl">Emergency Stop (High Speed)</div><div class="pbtndesc">AH→AS: S:90 / P:30~50</div></button>
+    <button class="pbtn" id="pr4" onclick="preset(-72,-42,4,'indep')"  style="color:#fb923c; flex:1;min-width:130px;margin:0;"><div class="pbtnlbl">Astern in Narrow Channel</div><div class="pbtndesc">S: AS 72 / P: AS 42</div></button>
+  </div>
+
+  <div class="cv-col"><canvas id="cv"></canvas></div>
+</div>
+
+<script>
+/* ── Canvas setup ── */
+const cv=document.getElementById('cv'), ctx=cv.getContext('2d');
+function resize(){cv.width=cv.parentElement.clientWidth;cv.height=cv.parentElement.clientHeight;}
+resize(); window.addEventListener('resize',resize);
+
+/* ── Scale ──
+   DS : draw scale  - pixels per metre for rendering the ship (small)
+   CS : cam  scale  - pixels per metre for camera/trail movement (much larger → visible travel)
+*/
+function getDS(){return Math.max(0.44,(cv.height*0.52)/38/5);}
+function getCS(){return getDS()*30;}  // camera moves 30x faster than ship pixels → visible travel
+
+/* ── State ── */
+const INIT_HDG=90;
+const st={bargeW:36,bargeL:98,tugW:10,tugL:42,tugOffset:0,
+  propS:0,propP:0,heading:INIT_HDG,worldX:0,worldY:0,velX:0,velY:0,
+  trail:[],totalDist:0,running:false,mode:'indep',comboBase:0,comboHandle:0,
+  smoothAnchorX:null, anchorLocked:false};
+
+/* ── Wake particle pool ── */
+const wake=[];
+
+/* ============================================================
+   STEERING ANGLE INDICATOR
+   Shows effective thrust angle for each prop:
+   - S (STBD): PDF says ~32° inward angle needed at full AH
+   - P (PORT): 0° (straight ahead)
+   Dial shows direction from "ahead" (right on semicircle)
+============================================================ */
+function drawSteerDial(canvEl,propVal,side){
+  if(!canvEl)return;
+  const w=canvEl.width,h=canvEl.height;
+  const c=canvEl.getContext('2d');
+  c.clearRect(0,0,w,h);
+  const cx=w/2,cy=h-6,r=h-10;
+
+  // background semicircle (top half)
+  c.beginPath(); c.arc(cx,cy,r,Math.PI,0);
+  c.fillStyle='rgba(0,0,0,0.55)'; c.fill();
+  c.strokeStyle='rgba(60,100,160,0.45)'; c.lineWidth=1.5; c.stroke();
+
+  // tick marks every 30°
+  for(let a=0;a<=180;a+=30){
+    const rad=(180-a)*Math.PI/180;
+    const big=a%90===0;
+    c.beginPath();
+    c.moveTo(cx+Math.cos(rad)*(r-(big?5:3)),cy+Math.sin(rad)*(r-(big?5:3)));
+    c.lineTo(cx+Math.cos(rad)*r,cy+Math.sin(rad)*r);
+    c.strokeStyle=big?'rgba(100,150,220,0.6)':'rgba(60,100,160,0.35)';
+    c.lineWidth=big?1.5:0.8; c.stroke();
+  }
+  // labels: PORT | AHD | STBD
+  c.font='6px monospace'; c.fillStyle='rgba(80,120,180,0.7)'; c.textAlign='center';
+  c.fillText('P',cx-r+4,cy-2);
+  c.fillText('S',cx+r-4,cy-2);
+  c.fillStyle='rgba(180,200,255,0.5)'; c.fillText('AHD',cx,cy-r+8);
+
+  /* PDF p.2 기준: P=직진(0°편차), S=32° 좌현(내측/부선방향) 보정 */
+  let ang=0;
+  if(propVal!==0){ const sign=propVal>0?1:-1; ang=side==="S"?sign*32:0; }
+  const col=propVal===0?"#475569":propVal>0?"#4ade80":"#f87171";
+  /* AHD=top=-π/2; PORT=LEFT=빼기; STBD=RIGHT=더하기
+     S 32° 좌현(PORT) → 바늘 LEFT → needleRad=(-π/2)-ang  (PDF 일치) */
+  const needleRad=(-Math.PI/2)-(ang*Math.PI/180);
+  const nx=cx+Math.cos(needleRad)*(r-4);
+  const ny=cy+Math.sin(needleRad)*(r-4);
+
+  // glow
+  ctx_glow(c,col,6,()=>{
+    c.beginPath(); c.moveTo(cx,cy); c.lineTo(nx,ny);
+    c.strokeStyle=col; c.lineWidth=2.5; c.stroke();
+  });
+  c.beginPath(); c.arc(nx,ny,3,0,Math.PI*2); c.fillStyle=col; c.fill();
+  c.beginPath(); c.arc(cx,cy,4,0,Math.PI*2); c.fillStyle='rgba(200,220,255,0.55)'; c.fill();
+
+  // angle text
+  c.fillStyle=col; c.font='bold 9px monospace'; c.textAlign='center';
+  c.fillText((ang>=0?'+':'')+Math.round(ang)+'°',cx,cy+12);
+}
+function ctx_glow(c,col,blur,fn){
+  c.save(); c.shadowColor=col; c.shadowBlur=blur; fn(); c.restore();
+}
+
+function refreshDials(){ /* dials removed — digital display only */ }
+refreshDials();
+
+/* ── Sliders (spec panel removed — values fixed at defaults in st{}) ── */
+function refreshProp(sid,el,v){
+  const s=document.getElementById(sid); if(!s)return;
+  const col=v===0?'#475569':v>0?'#4ade80':'#f87171';
+  s.style.color=col; s.style.background=col+'18';
+  s.textContent=v===0?'STOP':(v>0?'AH ':'AS ')+Math.abs(v)+'°';
+  if(el) el.style.accentColor=col;
+}
+function pSl(id,sid,key){
+  document.getElementById(id).addEventListener('input',function(){
+    st[key]=parseInt(this.value); refreshProp(sid,this,st[key]); refreshDials(); clearHL();
+  });
+}
+pSl('propS','sStatus','propS'); pSl('propP','pStatus','propP');
+
+document.getElementById('comboBase').addEventListener('input',function(){
+  st.comboBase=parseInt(this.value);
+  const el=document.getElementById('comboPow');
+  // RPM mapping: |val| 0→0, 1~90 → 400~760 RPM
+  const absV=Math.abs(st.comboBase);
+  const rpm = absV===0 ? 0 : Math.round(400 + (absV/90)*(760-400));
+  const dir = st.comboBase>0?'AH ':st.comboBase<0?'AS ':'';
+  el.textContent = absV===0 ? '0 RPM' : rpm+' RPM';
+  el.style.color=st.comboBase>0?'#4ade80':st.comboBase<0?'#f87171':'#475569';
+  syncCombo(); clearHL();
+});
+document.getElementById('comboHandle').addEventListener('input',function(){
+  st.comboHandle=parseInt(this.value);
+  const el=document.getElementById('comboAngle');
+  // Show actual steering angle: 0° center, PORT(-) left, STBD(+) right
+  const ang=Math.abs(st.comboHandle);
+  const dir=st.comboHandle>0?'STBD ':st.comboHandle<0?'PORT ':'';
+  el.textContent = ang===0 ? '0°' : dir+ang+'°';
+  el.style.color=st.comboHandle>0?'#fbbf24':st.comboHandle<0?'#60a5fa':'#94a3b8';
+  const h=document.getElementById('comboHint');
+  if(st.comboHandle>=10&&st.comboHandle<=13)h.textContent='✓ Recommended: Straight Ahead (STBD 10~13°)';
+  else if(Math.abs(st.comboHandle)<=3)h.textContent='Near straight';
+  else if(st.comboHandle>13)h.textContent='⚠ Stbd turn — watch rope tension!';
+  else h.textContent='Port turn';
+  syncCombo(); clearHL();
+});
+function syncCombo(){
+  /* Combination mode:
+     - POWER: both props same = comboBase (RPM displayed, not angle)
+     - comboHandle = steering nozzle angle: PORT(-)←0°→STBD(+)
+     - Digital displays show actual steering angle for each prop     */
+  st.propS = Math.min(90, Math.max(-90, st.comboBase));
+  st.propP = Math.min(90, Math.max(-90, st.comboBase));
+  refreshProp('sStatus', document.getElementById('propS'), st.propS);
+  refreshProp('pStatus', document.getElementById('propP'), st.propP);
+
+  // Steering angle display: both nozzles deflected by comboHandle
+  // S nozzle: STBD(+handle) = toward stbd, P nozzle same direction
+  const steerAng = Math.abs(st.comboHandle);
+  const steerDir = st.comboHandle > 0 ? 'STBD ' : st.comboHandle < 0 ? 'PORT ' : '';
+  const steerCol = st.comboHandle > 0 ? '#fbbf24' : st.comboHandle < 0 ? '#60a5fa' : '#94a3b8';
+  const steerTxt = steerAng === 0 ? '0°' : steerDir + steerAng + '°';
+
+  const ss2 = document.getElementById('sStatus2');
+  const ps2 = document.getElementById('pStatus2');
+  ss2.textContent = steerTxt; ss2.style.color = steerCol; ss2.style.background = steerCol+'18';
+  ps2.textContent = steerTxt; ps2.style.color = steerCol; ps2.style.background = steerCol+'18';
+
+  document.getElementById('propS').value=st.propS;
+  document.getElementById('propP').value=st.propP;
+  refreshDials();
+}
+function setMode(m){
+  st.mode=m;
+  document.getElementById('modeIndep').style.display=m==='indep'?'block':'none';
+  document.getElementById('modeCombo').style.display=m==='combo'?'block':'none';
+  document.getElementById('tabIndep').className='tab'+(m==='indep'?' active':'');
+  document.getElementById('tabCombo').className='tab'+(m==='combo'?' active':'');
+}
+
+/* ── Presets ── */
+const PC=['#4ade80','#60a5fa','#fb923c','#ef4444','#fb923c','#94a3b8'];
+function clearHL(){for(let i=0;i<6;i++){const b=document.getElementById('pr'+i);if(b){b.style.background='rgba(255,255,255,0.02)';b.style.borderColor='#1e3a55';}}}
+function hlP(idx){clearHL();const b=document.getElementById('pr'+idx);if(b){b.style.background=PC[idx]+'15';b.style.borderColor=PC[idx];}}
+function preset(s,p,idx,mode){
+  setMode(mode); st.propS=s; st.propP=p;
+  document.getElementById('propS').value=s; document.getElementById('propP').value=p;
+  refreshProp('sStatus',document.getElementById('propS'),s);
+  refreshProp('pStatus',document.getElementById('propP'),p);
+  refreshDials(); hlP(idx);
+  const wb=document.getElementById('warningBox');
+  if(idx===2||idx===3){wb.style.display='block';wb.textContent='⚠ 긴급정지: 속도 비례 출력. 4kts 이하시 어떤 방법도 무방.';}
+  else wb.style.display='none';
+}
+function presetCombo(base,handle,idx){
+  setMode('combo'); st.comboBase=base; st.comboHandle=handle;
+  document.getElementById('comboBase').value=base;
+  document.getElementById('comboHandle').value=handle;
+  // RPM display
+  const pe=document.getElementById('comboPow');
+  const absB=Math.abs(base);
+  const rpm=absB===0?0:Math.round(400+(absB/90)*(760-400));
+  pe.textContent=absB===0?'0 RPM':rpm+' RPM';
+  pe.style.color=base>0?'#4ade80':base<0?'#f87171':'#475569';
+  // Steering angle display
+  const ang=Math.abs(handle);
+  const dir=handle>0?'STBD ':handle<0?'PORT ':'';
+  document.getElementById('comboAngle').textContent=ang===0?'0°':dir+ang+'°';
+  document.getElementById('comboHint').textContent='✓ Recommended: Straight Ahead (STBD 10~13°)';
+  syncCombo(); hlP(idx); document.getElementById('warningBox').style.display='none';
+}
+
+/* ── Emergency Stop Sequence ──
+   Phase 1: Straight ahead P:AH90 / S:AH75 for 7s
+   Phase 2: Ramp to astern over 1.5s (20 steps × 75ms)
+   Phase 3: Hold astern until speed ≈ 0 → auto set 0            */
+function emergencyStopSequence(sTarget, pTarget, idx){
+  doReset();
+  setMode('indep');
+
+  // Phase 1: set straight ahead
+  const sAhead=75, pAhead=90;
+  function applyProps(sv,pv){
+    st.propS=sv; st.propP=pv;
+    document.getElementById('propS').value=sv;
+    document.getElementById('propP').value=pv;
+    refreshProp('sStatus',document.getElementById('propS'),sv);
+    refreshProp('pStatus',document.getElementById('propP'),pv);
+    refreshProp('sStatus2',null,sv);
+    refreshProp('pStatus2',null,pv);
+    refreshDials();
+  }
+  applyProps(sAhead, pAhead);
+  hlP(idx);
+  st.anchorLocked = false; // allow normal camera during straight ahead phase
+
+  const wb=document.getElementById('warningBox');
+  wb.style.display='block';
+  wb.style.color='#4ade80';
+  wb.textContent='▶ STRAIGHT AHEAD — P: AH 90° / S: AH 75°';
+
+  st.running=true;
+  const btn=document.getElementById('btnRun');
+  btn.className='btn btnstop'; btn.textContent='⏸ PAUSE';
+
+  // Phase 2: after 3.5s ramp to astern
+  setTimeout(()=>{
+    wb.style.color='#fb923c';
+    wb.textContent='⚠ EMERGENCY STOP — Transitioning to ASTERN...';
+    st.anchorLocked = true; // freeze camera position NOW - no more jumping
+
+    const rampSteps=20, rampMs=75; // 1.5s total
+    let step=0;
+    const ramp=setInterval(()=>{
+      step++;
+      const t=step/rampSteps;
+      // ease-in curve for more realistic deceleration feel
+      const ease=t*t;
+      const curS=Math.round(sAhead + (sTarget-sAhead)*ease);
+      const curP=Math.round(pAhead + (pTarget-pAhead)*ease);
+      applyProps(curS, curP);
+
+      // Update warning box with live angle values
+      wb.textContent=`⚠ EMERGENCY STOP — S: ${curS<0?'AS':'AH'} ${Math.abs(curS)}°  /  P: ${curP<0?'AS':'AH'} ${Math.abs(curP)}°`;
+
+      if(step>=rampSteps){
+        clearInterval(ramp);
+        wb.style.color='#ef4444';
+        wb.textContent=`🛑 FULL ASTERN — S: AS ${Math.abs(sTarget)}°  /  P: AS ${Math.abs(pTarget)}°`;
+
+        // Phase 3: wait for near-stop
+        const chk=setInterval(()=>{
+          const spd=Math.sqrt(st.velX*st.velX+st.velY*st.velY);
+          if(spd<0.025){
+            clearInterval(chk);
+            applyProps(0,0);
+            wb.style.color='#4ade80';
+            wb.textContent='✅ VESSEL STOPPED';
+          }
+        },200);
+      }
+    },rampMs);
+  },7000);
+}
+function toggleRun(){
+  st.running=!st.running;
+  const btn=document.getElementById('btnRun');
+  if(st.running){btn.className='btn btnstop';btn.textContent='⏸ 일시정지';}
+  else{btn.className='btn btnrun';btn.textContent='▶ START';}
+}
+function doReset(){
+  st.running=false; st.heading=INIT_HDG;
+  st.worldX=0; st.worldY=0;
+  st.velX=0; st.velY=0; st.trail=[]; st.totalDist=0; lastTs=null; wake.length=0;
+  st.smoothAnchorX=null; st.anchorLocked=false;
+  document.getElementById('btnRun').className='btn btnrun';
+  document.getElementById('btnRun').textContent='▶ START';
+  document.getElementById('sHdg').textContent=INIT_HDG+'°';
+  ['sDrift','sYaw'].forEach(id=>document.getElementById(id).textContent='0°');
+  document.getElementById('sDist').textContent='0m'; 
+  
+}
+
+/* ── Physics ── */
+let lastTs=null;
+function physics(dt){
+  /* YAW FORMULA:
+     Independent:   P:AH90 / S:AH75  → k=1.2 → 1.2×75−90=0 ✓
+     Combination:   P:AH102 / S:AH80 → k=1.2 → 1.2×80=96 vs 102 → slight port yaw (correct, handle compensates)
+     Astern mid:    S:AS90 / P:AS52  → k=0.58
+     Astern high:   S:AS90 / P:AS40  → k=0.44                       */
+  const net0 = (st.propS + st.propP) / 180.0;
+  let yawDPS;
+  if(st.mode === 'combo'){
+    /* Combo: both nozzles deflected by comboHandle°
+       Handle STBD(+) → thrust vector tilts portward → vessel turns PORT
+       Handle S+10~13° compensates barge CoM offset → straight ahead
+       yaw = -handle * power_factor  (STBD handle → port yaw to correct offset) */
+    const powerFactor = Math.abs(net0) * 0.18;
+    yawDPS = Math.max(-6, Math.min(6, st.comboHandle * powerFactor));
+  } else {
+    /* Independent: differential thrust creates yaw
+       P:AH90 / S:AH75 → straight (k=1.2: 1.2×75−90=0)                  */
+    const k = net0 >= 0 ? 1.2 : 1.2 + (0.44-1.2)*Math.min(1,Math.abs(net0));
+    yawDPS = Math.max(-6, Math.min(6, (k * st.propS - st.propP) * 0.042));
+  }
+  st.heading = ((st.heading + yawDPS*dt) % 360 + 360) % 360;
+
+  /* FORWARD SPEED */
+  const net = (st.propS + st.propP) / 180.0;
+  const maxSpd = 1.2;
+  const hr = st.heading * Math.PI / 180;
+  const vE = Math.sin(hr) * net * maxSpd;
+  const vN = Math.cos(hr) * net * maxSpd;
+
+  // If astern thrust while still moving forward → immediate stop
+  const fwdSpd = st.velX * Math.sin(hr) + st.velY * Math.cos(hr);
+  const braking = (net < -0.05 && fwdSpd > 0.01) || (net > 0.05 && fwdSpd < -0.01);
+  if(braking){
+    // Kill velocity instantly, then let astern thrust build from 0
+    st.velX = 0;
+    st.velY = 0;
+  } else {
+    const lag = Math.min(1, dt * 2.0);
+    st.velX += (vE - st.velX) * lag;
+    st.velY += (vN - st.velY) * lag;
+  }
+  const dx = st.velX * dt, dy = st.velY * dt;
+  st.worldX += dx; st.worldY += dy;
+  st.totalDist += Math.sqrt(dx*dx + dy*dy);
+  st.trail.push({x:st.worldX, y:st.worldY});
+  if(st.trail.length>900) st.trail.shift();
+
+  const hdg=Math.round(st.heading);
+  const drift=((hdg-INIT_HDG+180)%360+360)%360-180;
+  const spd=(Math.sqrt(st.velX**2+st.velY**2)*1.944).toFixed(1);
+  document.getElementById('sHdg').textContent=hdg+'°';
+  document.getElementById('sDrift').textContent=(drift>=0?'+':'')+Math.round(drift)+'°';
+  document.getElementById('sYaw').textContent=Math.round(yawDPS*10)/10+'°/s';
+  document.getElementById('sDist').textContent=Math.round(st.totalDist)+'m';
+  
+  const netPct=Math.abs(Math.round(net*100));
+  const nc=net>0?'#4ade80':net<0?'#f87171':'#475569';
+  const yc=yawDPS>0.3?'#fbbf24':yawDPS<-0.3?'#60a5fa':'#475569';
+  return yawDPS;
+}
+
+/* ── Wake emission (screen-space streaks) ── */
+function emitWake(sx,sy,propVal,headingRad,side){
+  if(Math.abs(propVal)<5)return;
+  const hr=headingRad;
+  // bow direction in screen: dx=sin(H), dy=-cos(H) (Y inverted)
+  // wake = opposite of thrust direction
+  const bx=Math.sin(hr), by=-Math.cos(hr);
+  const wAng=propVal>0 ? Math.atan2(-by,-bx) : Math.atan2(by,bx);
+  const speed=(Math.abs(propVal)/100)*90;
+  const count=Math.max(1,Math.floor(Math.abs(propVal)/18));
+  for(let i=0;i<count;i++){
+    const spread=(Math.random()-0.5)*0.4;
+    const a=wAng+spread;
+    const spd=speed*(0.4+Math.random()*0.8);
+    const life=0.5+Math.random()*0.55;
+    const r=propVal>0?`rgba(${80+Math.floor(Math.random()*80)},${180+Math.floor(Math.random()*60)},255,`:
+                      `rgba(255,${130+Math.floor(Math.random()*70)},80,`;
+    wake.push({
+      x:sx+(Math.random()-0.5)*4,
+      y:sy+(Math.random()-0.5)*4,
+      vx:Math.cos(a)*spd, vy:Math.sin(a)*spd,
+      life, maxLife:life,
+      len:(10+Math.random()*28)*(Math.abs(propVal)/100),
+      ang:a, col:r, alpha:0.45+Math.random()*0.45
+    });
+  }
+  if(wake.length>550)wake.splice(0,wake.length-550);
+}
+
+function drawWake(dt){
+  for(let i=wake.length-1;i>=0;i--){
+    const p=wake[i];
+    p.x+=p.vx*dt; p.y+=p.vy*dt; p.life-=dt;
+    if(p.life<=0){wake.splice(i,1);continue;}
+    const t=p.life/p.maxLife;
+    const a=p.alpha*t*t;
+    const len=p.len*(0.35+0.65*t);
+    const ex=p.x+Math.cos(p.ang)*len, ey=p.y+Math.sin(p.ang)*len;
+    // 3 glow layers like the reference image
+    ctx.save();
+    ctx.lineCap='round';
+    ctx.beginPath(); ctx.moveTo(p.x,p.y); ctx.lineTo(ex,ey);
+    ctx.strokeStyle=p.col+(a*0.08)+')'; ctx.lineWidth=6; ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(p.x,p.y); ctx.lineTo(ex,ey);
+    ctx.strokeStyle=p.col+(a*0.3)+')'; ctx.lineWidth=2.5; ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(p.x,p.y); ctx.lineTo(ex,ey);
+    ctx.strokeStyle=p.col+(a*0.85)+')'; ctx.lineWidth=1; ctx.stroke();
+    ctx.restore();
+  }
+}
+
+/* ── Compass ── */
+function drawCompass(hdg){
+  const W=cv.width,cx=W-65,cy=65,r=52;
+  ctx.save(); ctx.translate(cx,cy);
+  ctx.beginPath(); ctx.arc(0,0,r,0,Math.PI*2); ctx.fillStyle='rgba(3,12,28,0.94)'; ctx.fill();
+  ctx.strokeStyle='#c9963c'; ctx.lineWidth=2; ctx.stroke();
+  for(let i=0;i<36;i++){
+    const a=i*10*Math.PI/180,big=i%9===0;
+    ctx.beginPath(); ctx.moveTo(Math.sin(a)*(big?31:38),-Math.cos(a)*(big?31:38));
+    ctx.lineTo(Math.sin(a)*44,-Math.cos(a)*44);
+    ctx.strokeStyle=big?'#c9963c':'rgba(200,150,50,0.3)'; ctx.lineWidth=big?2:0.8; ctx.stroke();
+  }
+  [['N',0,'#ef4444'],['E',90,'#c9963c'],['S',180,'#c9963c'],['W',270,'#c9963c']].forEach(([d,a,col])=>{
+    const rad=a*Math.PI/180; ctx.fillStyle=col;
+    ctx.font=`bold ${d==='N'?12:10}px monospace`; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(d,Math.sin(rad)*23,-Math.cos(rad)*23);
+  });
+  ctx.textBaseline='alphabetic';
+  ctx.save(); ctx.rotate(hdg*Math.PI/180);
+  ctx.beginPath(); ctx.moveTo(-4,13); ctx.lineTo(0,-38); ctx.lineTo(4,13); ctx.closePath(); ctx.fillStyle='#ef4444'; ctx.fill();
+  ctx.beginPath(); ctx.moveTo(-4,-13); ctx.lineTo(0,38); ctx.lineTo(4,-13); ctx.closePath(); ctx.fillStyle='#cbd5e1'; ctx.fill();
+  ctx.beginPath(); ctx.arc(0,0,4,0,Math.PI*2); ctx.fillStyle='#0f172a'; ctx.fill();
+  ctx.strokeStyle='#c9963c'; ctx.lineWidth=1.5; ctx.stroke(); ctx.restore();
+  ctx.fillStyle='#fbbf24'; ctx.font='bold 10px monospace'; ctx.textAlign='center'; ctx.textBaseline='alphabetic';
+  ctx.fillText(Math.round(hdg)+'°',0,r+10); ctx.restore();
+}
+
+/* ── Main loop ── */
+function frame(ts){
+  if(!lastTs)lastTs=ts;
+  const dt=Math.min((ts-lastTs)/1000,0.05); lastTs=ts;
+  const SC=getDS();
+  const CS=getCS();
+  const W=cv.width, H=cv.height;
+
+  // Anchor X: forward→left side, astern→right side
+  const net0 = (st.propS + st.propP) / 180.0;
+  // Camera anchor: locked during emergency stop, smooth lerp otherwise
+  if(!st.anchorLocked){
+    const hr2 = st.heading * Math.PI / 180;
+    const actualFwd = st.velX * Math.sin(hr2) + st.velY * Math.cos(hr2);
+    // Only switch anchor side when ship is nearly stopped (prevents mid-motion jump)
+    const isAstern = actualFwd < -0.03;
+    const targetAnchor = isAstern ? W*0.88 : W*0.12;
+    if(st.smoothAnchorX===null) st.smoothAnchorX = targetAnchor;
+    // Very slow lerp so any transition is gradual, never a jump
+    st.smoothAnchorX += (targetAnchor - st.smoothAnchorX) * 0.008;
+  }
+  const anchorX = st.smoothAnchorX || W*0.12;
+  // Ship position: anchorX is the "home" position when worldX=0; as ship moves, it drifts on screen
+  // Camera follows by lerping anchorX toward keeping ship in frame
+  const shipSX = W*0.12 + st.worldX*CS;
+  const shipSY = H*0.55 - st.worldY*CS;
+
+  if(st.running){
+    physics(dt);
+    // Prop world positions for wake (tug stern, starboard side)
+    const hr=st.heading*Math.PI/180;
+    const cosR=Math.cos((st.heading-90)*Math.PI/180);
+    const sinR=Math.sin((st.heading-90)*Math.PI/180);
+    const bW=st.bargeW, tW=st.tugW;
+    const sternLX=(-st.bargeL/2)*SC;
+    const pLY=((bW-tW)/2+tW*0.22)*SC;
+    const sLY=((bW-tW)/2+tW*0.78)*SC;
+    function lts(lx,ly){return{sx:shipSX+lx*cosR-ly*sinR, sy:shipSY+lx*sinR+ly*cosR};}
+    const pPos=lts(sternLX,pLY), sPos=lts(sternLX,sLY);
+    emitWake(pPos.sx,pPos.sy,st.propP,hr,'P');
+    emitWake(sPos.sx,sPos.sy,st.propS,hr,'S');
+  }
+
+  /* ── clear ── */
+  ctx.fillStyle='#03101e'; ctx.fillRect(0,0,W,H);
+
+  /* ── Wake ── */
+  drawWake(dt);
+
+  /* ── Trail ── */
+  if(st.trail.length>1){
+    for(let i=1;i<st.trail.length;i++){
+      const a=(i/st.trail.length)*0.7;
+      ctx.strokeStyle=`rgba(60,170,255,${a})`;ctx.lineWidth=2;ctx.beginPath();
+      ctx.moveTo(anchorX + st.trail[i-1].x*CS, H*0.55 - st.trail[i-1].y*CS);
+      ctx.lineTo(anchorX + st.trail[i].x*CS,   H*0.55 - st.trail[i].y*CS);
+      ctx.stroke();
+    }
+  }
+
+  /* ── SHIP (translate to screen pos, rotate by heading) ── */
+  ctx.save();
+  ctx.translate(shipSX, shipSY);
+  ctx.rotate((st.heading-90)*Math.PI/180);
+
+  const bLpx=st.bargeL*SC, bWpx=st.bargeW*SC;
+  const tLpx=st.tugL*SC,   tWpx=st.tugW*SC;
+  const comYpx=(bWpx+tWpx)/2;
+  const bowX=bLpx/2, sternX=-bLpx/2;
+  const bargePortY=-comYpx, bargeStbdY=bargePortY+bWpx;
+  const tugPortY=bargeStbdY, tugStbdY=tugPortY+tWpx;
+  const tugSternX=sternX+st.tugOffset*SC;
+  const tugBowX=tugSternX+tLpx;
+
+  /* BARGE */
+  ctx.save();
+  ctx.shadowColor='#1558aa'; ctx.shadowBlur=20;
+  ctx.beginPath();
+  ctx.moveTo(bowX-bLpx*0.015,bargePortY); ctx.lineTo(bowX,bargePortY+bWpx*0.05);
+  ctx.lineTo(bowX,bargeStbdY-bWpx*0.05); ctx.lineTo(bowX-bLpx*0.015,bargeStbdY);
+  ctx.lineTo(sternX,bargeStbdY); ctx.lineTo(sternX,bargePortY); ctx.closePath();
+  const bg=ctx.createLinearGradient(0,bargePortY,0,bargeStbdY);
+  bg.addColorStop(0,'#0b3168d0'); bg.addColorStop(0.5,'#1a4a90d0'); bg.addColorStop(1,'#0b3168d0');
+  ctx.fillStyle=bg; ctx.fill(); ctx.shadowBlur=0;
+  ctx.strokeStyle='#4a9edd'; ctx.lineWidth=2.5; ctx.stroke();
+  ctx.setLineDash([4,10]); ctx.strokeStyle='rgba(74,158,221,0.2)'; ctx.lineWidth=1;
+  for(let i=1;i<8;i++){const lx=sternX+bLpx*i/8;ctx.beginPath();ctx.moveTo(lx,bargePortY+4);ctx.lineTo(lx,bargeStbdY-4);ctx.stroke();}
+  ctx.setLineDash([]);
+  const cbW=bLpx/5-8, cbH=bWpx/2-7;
+  ctx.fillStyle='rgba(12,45,100,0.55)'; ctx.strokeStyle='rgba(50,115,195,0.28)'; ctx.lineWidth=1;
+  for(let r2=0;r2<2;r2++) for(let c2=0;c2<4;c2++){
+    const bx2=sternX+8+c2*(bLpx/4), by2=bargePortY+6+r2*(bWpx/2);
+    ctx.fillRect(bx2,by2,cbW,cbH); ctx.strokeRect(bx2,by2,cbW,cbH);
+  }
+  ctx.fillStyle='rgba(100,180,255,0.85)'; ctx.font=`bold ${Math.max(9,SC*1.4)}px monospace`;
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText('BARGE',0,(bargePortY+bargeStbdY)/2-6);
+  ctx.font=`${Math.max(7,SC*0.9)}px monospace`; ctx.fillStyle='rgba(70,130,200,0.65)';
+  ctx.fillText(`${st.bargeW}m×${st.bargeL}m`,0,(bargePortY+bargeStbdY)/2+8);
+  ctx.restore();
+
+  /* TUG */
+  ctx.save();
+  ctx.shadowColor='#c94a00'; ctx.shadowBlur=14;
+  ctx.beginPath();
+  ctx.moveTo(tugBowX-tLpx*0.08,tugPortY); ctx.lineTo(tugBowX,tugPortY+tWpx*0.15);
+  ctx.lineTo(tugBowX,tugStbdY-tWpx*0.15); ctx.lineTo(tugBowX-tLpx*0.08,tugStbdY);
+  ctx.lineTo(tugSternX,tugStbdY); ctx.lineTo(tugSternX,tugPortY); ctx.closePath();
+  const tg=ctx.createLinearGradient(0,tugPortY,0,tugStbdY);
+  tg.addColorStop(0,'#7a2b05ee'); tg.addColorStop(0.5,'#b84510ee'); tg.addColorStop(1,'#7a2b05ee');
+  ctx.fillStyle=tg; ctx.fill(); ctx.shadowBlur=0;
+  ctx.strokeStyle='#ff8c3a'; ctx.lineWidth=2; ctx.stroke();
+  const midTX=(tugSternX+tugBowX)/2, midTY=(tugPortY+tugStbdY)/2;
+  const brgL=tLpx*0.27, brgW2=tWpx*0.62;
+  ctx.fillStyle='rgba(185,68,15,0.9)'; ctx.fillRect(midTX-brgL/2,midTY-brgW2/2,brgL,brgW2);
+  ctx.strokeStyle='#ff9a50'; ctx.lineWidth=1.5; ctx.strokeRect(midTX-brgL/2,midTY-brgW2/2,brgL,brgW2);
+  ctx.fillStyle='rgba(255,220,100,0.55)';
+  for(let w=0;w<3;w++) ctx.fillRect(midTX-brgL/2+4+w*(brgL/3),midTY-brgW2/2+4,brgL/3-9,brgW2*0.38);
+  ctx.fillStyle='rgba(255,165,70,0.9)'; ctx.font=`bold ${Math.max(8,SC*1.1)}px monospace`;
+  ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('TUG',midTX,midTY);
+  ctx.restore();
+
+  /* mooring ropes */
+  ctx.save(); ctx.lineWidth=1.8; ctx.strokeStyle='rgba(255,200,50,0.38)';
+  for(const f of [0.25,0.5,0.75]){
+    const rx=tugSternX+tLpx*f;
+    if(rx>=sternX&&rx<=bowX){ctx.beginPath();ctx.moveTo(rx,bargeStbdY);ctx.lineTo(rx,tugPortY);ctx.stroke();}
+  }
+  ctx.strokeStyle='rgba(255,200,50,0.22)'; ctx.setLineDash([3,6]);
+  ctx.beginPath(); ctx.moveTo(bowX,bargePortY+bWpx*0.05); ctx.lineTo(tugBowX,tugPortY+tWpx*0.15); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(sternX,bargePortY+bWpx*0.05); ctx.lineTo(tugSternX,tugPortY+tWpx*0.15); ctx.stroke();
+  ctx.setLineDash([]); ctx.restore();
+
+  /* center lines */
+  ctx.save(); ctx.setLineDash([5,9]);
+  ctx.strokeStyle='rgba(80,160,255,0.5)'; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.moveTo(sternX-22,bargePortY+bWpx/2); ctx.lineTo(bowX+22,bargePortY+bWpx/2); ctx.stroke();
+  ctx.strokeStyle='rgba(255,130,50,0.4)'; ctx.lineWidth=1.2;
+  ctx.beginPath(); ctx.moveTo(tugSternX-10,tugPortY+tWpx/2); ctx.lineTo(tugBowX+10,tugPortY+tWpx/2); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.strokeStyle='rgba(251,191,36,0.95)'; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(sternX-40,0); ctx.lineTo(bowX+40,0); ctx.stroke();
+  const shift_m=(st.bargeW+st.tugW)/2-st.bargeW/2;
+  const dA=Math.atan2(shift_m,st.bargeL*0.55);
+  ctx.strokeStyle='rgba(249,115,22,0.55)'; ctx.lineWidth=1.5; ctx.setLineDash([7,6]);
+  const L2=bLpx/2+45;
+  ctx.beginPath(); ctx.moveTo(-L2,Math.tan(-dA)*L2); ctx.lineTo(L2,-Math.tan(-dA)*L2); ctx.stroke();
+  ctx.setLineDash([]); ctx.restore();
+
+  /* CoM diamond */
+  const pulse=0.6+0.4*Math.sin(ts/380);
+  ctx.save(); ctx.globalAlpha=pulse;
+  ctx.beginPath(); ctx.moveTo(0,-9); ctx.lineTo(9,0); ctx.lineTo(0,9); ctx.lineTo(-9,0); ctx.closePath();
+  ctx.fillStyle='#fbbf24'; ctx.fill(); ctx.globalAlpha=1;
+  ctx.strokeStyle='rgba(255,255,255,0.18)'; ctx.lineWidth=1; ctx.stroke(); ctx.restore();
+
+  /* ── PROPELLER DISKS on tug hull ── */
+  const propSternX = tugSternX - 8;
+  const pDiskY = tugPortY + tWpx*0.22;
+  const sDiskY = tugPortY + tWpx*0.78;
+
+  function drawDisk(px,py,val){
+    const col=val===0?'#334155':val>0?'#22c55e':'#f87171';
+    if(val!==0){
+      ctx.beginPath();ctx.arc(px,py,10,0,Math.PI*2);ctx.strokeStyle=col+'35';ctx.lineWidth=2.5;ctx.stroke();
+      ctx.beginPath();ctx.arc(px,py,6,0,Math.PI*2); ctx.strokeStyle=col+'60';ctx.lineWidth=1.5;ctx.stroke();
+    }
+    ctx.beginPath();ctx.arc(px,py,4,0,Math.PI*2);ctx.fillStyle=col;ctx.fill();
+  }
+  drawDisk(propSternX, pDiskY, st.propP);
+  drawDisk(propSternX, sDiskY, st.propS);
+
+  /* ── THRUST ARROWS from actual prop disk positions ──
+     Reference image convention:
+       S AH 90° → straight sternward  (←  when heading=right)
+       P AH 75° → sternward + portward (↙)
+       S AS 90° → straight bowward    (→)
+       P AS 52° → bowward + portward  (↗ toward port-bow)
+     Ship local: +X=bow, -X=stern, -Y=port(up), +Y=stbd(down)
+     a = |val|×π/180
+     AH(+): X component = -sin(a) [sternward]
+     AS(-): X component = +sin(a) [bowward]
+     P: Y component = -cos(a) [portward/upward — always toward barge]
+     S: Y component = +cos(a) [stbdward/downward]                           */
+
+  function drawPropArrow(diskPx, diskPy, val, lbl, side, comboHandle){
+    comboHandle = comboHandle||0;
+    const col = val===0 ? '#334155' : val>0 ? '#22c55e' : '#f87171';
+
+    // Disk glow rings
+    if(val!==0){
+      ctx.beginPath();ctx.arc(diskPx,diskPy,12,0,Math.PI*2);ctx.strokeStyle=col+'30';ctx.lineWidth=3;ctx.stroke();
+      ctx.beginPath();ctx.arc(diskPx,diskPy,7,0,Math.PI*2); ctx.strokeStyle=col+'55';ctx.lineWidth=2;ctx.stroke();
+    }
+    ctx.beginPath();ctx.arc(diskPx,diskPy,5,0,Math.PI*2);ctx.fillStyle=col;ctx.fill();
+
+    // Label above disk
+    ctx.fillStyle=col==='#334155'?'#475569':col;
+    ctx.font='bold 8px monospace'; ctx.textAlign='center'; ctx.textBaseline='bottom';
+    ctx.fillText(lbl+':'+(val===0?'STOP':((val>0?'AH':'AS')+Math.abs(val))), diskPx, diskPy-8);
+
+    if(val===0) return;
+
+    const a   = Math.abs(val) * Math.PI / 180;
+    const sx  = val > 0 ? -1 : 1;       // AH→stern(-X), AS→bow(+X)
+    const ux_base = sx * Math.sin(a);
+
+    /* Combination handle deflection:
+       Handle STBD(+): nozzle tilts STBD → arrow points STBD(+Y)
+       Handle PORT(-): nozzle tilts PORT → arrow points PORT(-Y)
+       deflect_uy = +sin(handle * π/180)  [positive = stbdward]            */
+    const deflect = comboHandle * Math.PI / 180;
+    const uy_indep = side==='P' ? -Math.cos(a) : Math.cos(a);
+    const uy_combo_offset = comboHandle!==0 ? Math.sin(deflect) : 0;
+    const ux = comboHandle!==0 ? ux_base * Math.cos(deflect) : ux_base;
+    const uy = comboHandle!==0 ? uy_combo_offset : uy_indep;
+
+    // Wake stream length proportional to |val| (same scale as emitWake streaks)
+    const wakeLen = Math.max(18, Math.abs(val) * 0.55);
+    // Arrow starts at wake tip, extends further
+    const startX = diskPx + ux * wakeLen;
+    const startY = diskPy + uy * wakeLen;
+    const alen = Math.max(20, Math.min(50, Math.abs(val) * 0.40));
+    const ex = startX + ux * alen;
+    const ey = startY + uy * alen;
+
+    // Arrow shaft — starts at wake tip
+    ctx.save(); ctx.shadowColor=col; ctx.shadowBlur=10;
+    ctx.beginPath(); ctx.strokeStyle=col; ctx.lineWidth=2.5; ctx.lineCap='round';
+    ctx.moveTo(startX, startY); ctx.lineTo(ex, ey); ctx.stroke();
+
+    // Arrowhead
+    const len = Math.sqrt(ux*ux+uy*uy)||1;
+    const nx=ux/len, ny=uy/len;
+    const bx=-nx, by=-ny;
+    ctx.beginPath(); ctx.fillStyle=col;
+    ctx.moveTo(ex, ey);
+    ctx.lineTo(ex+bx*8-by*4, ey+by*8+bx*4);
+    ctx.lineTo(ex+bx*8+by*4, ey+by*8-bx*4);
+    ctx.closePath(); ctx.fill();
+    ctx.restore();
+
+    // Degree label near midpoint of arrow
+    const mx = startX + ux*alen*0.5;
+    const my = startY + uy*alen*0.5;
+    const px =  uy * 10;   // perpendicular offset
+    const py = -ux * 10;
+    ctx.fillStyle='rgba(251,191,36,0.9)'; ctx.font='bold 8px monospace';
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(Math.abs(val)+'°', mx+px, my+py);
+  }
+
+  // In combo mode, both nozzles are deflected by comboHandle angle (STBD→wake to STBD, thrust to PORT)
+  const comboDeflect = st.mode==='combo' ? st.comboHandle : 0;
+  drawPropArrow(propSternX, pDiskY, st.propP, 'P', 'P', comboDeflect);
+  drawPropArrow(propSternX, sDiskY, st.propS, 'S', 'S', comboDeflect);
+
+
+  /* BOW marker */
+  ctx.fillStyle='rgba(100,160,220,0.6)'; ctx.font=`${Math.max(9,SC)}px monospace`;
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText('► BOW', bowX+24, (bargePortY+tugStbdY)/2);
+
+  ctx.restore(); /* end ship transform */
+
+  /* ── Compass ── */
+  drawCompass(st.heading);
+
+  /* ── Scale bar (50m) ── */
+  const sm=50, sp=sm*CS;
+  ctx.strokeStyle='#6a9abd'; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(14,H-18); ctx.lineTo(14+sp,H-18); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(14,H-13); ctx.lineTo(14,H-23); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(14+sp,H-13); ctx.lineTo(14+sp,H-23); ctx.stroke();
+  ctx.fillStyle='#5a7a95'; ctx.font='9px monospace'; ctx.textAlign='left';
+  ctx.fillText(sm+'m', 14+sp/2-8, H-5);
+
+  /* ── HUD ── */
+  ctx.fillStyle='rgba(3,12,28,0.82)'; ctx.fillRect(8,8,195,45);
+  ctx.strokeStyle='rgba(251,191,36,0.16)'; ctx.lineWidth=1; ctx.strokeRect(8,8,195,45);
+  ctx.fillStyle='#5aabff'; ctx.font='bold 9px monospace'; ctx.textAlign='left';
+  ctx.fillText('BARGE: '+st.bargeW+'m(W) × '+st.bargeL+'m(L)',14,22);
+  ctx.fillStyle='#ff8c3a'; ctx.fillText('TUG: '+st.tugW+'m(W) × '+st.tugL+'m(L)',14,34);
+  ctx.fillStyle='#c084fc'; ctx.fillText('CoM→'+((st.bargeW+st.tugW)/2-st.bargeW/2).toFixed(1)+'m STBD',14,46);
+
+  /* RUN blink */
+  if(st.running){
+    const blink=Math.sin(ts/300)>0;
+    ctx.fillStyle=blink?'#22c55e':'#166534';
+    ctx.beginPath(); ctx.arc(W-14,14,5,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='#4ade80'; ctx.font='bold 9px monospace'; ctx.textAlign='right';
+    ctx.fillText('● RUN',W-22,18);
+  }
+
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
+<!-- HOW TO USE MODAL -->
+<div id="helpModal" style="display:none;position:fixed;inset:0;z-index:999;background:rgba(0,5,18,0.82);backdrop-filter:blur(4px);align-items:center;justify-content:center;">
+  <div style="background:#070f20;border:1px solid rgba(96,165,250,0.4);border-radius:12px;width:min(780px,94vw);max-height:90vh;overflow-y:auto;padding:0;box-shadow:0 0 40px rgba(96,165,250,0.18);">
+    <!-- Header -->
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid rgba(96,165,250,0.2);">
+      <div style="color:#60a5fa;font-size:13px;font-weight:bold;letter-spacing:2px;">📖 HOW TO USE — FLAT BARGE SIDE-BY-SIDE TOWING SIMULATOR</div>
+      <button onclick="toggleHelp()" style="background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.4);color:#f87171;font-size:12px;font-weight:bold;padding:4px 12px;border-radius:6px;cursor:pointer;">✕ CLOSE</button>
+    </div>
+    <!-- Steps grid -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:16px 18px;">
+
+      <div style="display:flex;gap:10px;align-items:flex-start;background:rgba(30,58,138,0.15);padding:12px;border-radius:8px;border-left:3px solid #3b82f6;">
+        <span style="background:#1e40af;color:#93c5fd;font-size:10px;font-weight:bold;padding:3px 9px;border-radius:12px;white-space:nowrap;flex-shrink:0;margin-top:1px;">STEP 1</span>
+        <div style="color:#cbd5e1;font-size:11px;line-height:1.6;">
+          Select a <b style="color:#4ade80">PRESET</b> from the bar above the simulation, or manually drag the <b style="color:#22d3ee">S (STBD)</b> and <b style="color:#f472b6">P (PORT)</b> sliders in the Propeller Control panel on the left.
+        </div>
+      </div>
+
+      <div style="display:flex;gap:10px;align-items:flex-start;background:rgba(30,58,138,0.15);padding:12px;border-radius:8px;border-left:3px solid #3b82f6;">
+        <span style="background:#1e40af;color:#93c5fd;font-size:10px;font-weight:bold;padding:3px 9px;border-radius:12px;white-space:nowrap;flex-shrink:0;margin-top:1px;">STEP 2</span>
+        <div style="color:#cbd5e1;font-size:11px;line-height:1.6;">
+          Press <b style="color:#4ade80">▶ START</b> to run the simulation. The combined barge+tug moves according to thrust. Press <b style="color:#94a3b8">↺ RESET</b> to return to start.
+        </div>
+      </div>
+
+      <div style="display:flex;gap:10px;align-items:flex-start;background:rgba(30,58,138,0.15);padding:12px;border-radius:8px;border-left:3px solid #3b82f6;">
+        <span style="background:#1e40af;color:#93c5fd;font-size:10px;font-weight:bold;padding:3px 9px;border-radius:12px;white-space:nowrap;flex-shrink:0;margin-top:1px;">STEP 3</span>
+        <div style="color:#cbd5e1;font-size:11px;line-height:1.6;">
+          Watch the <b style="color:#fbbf24">thrust arrows</b> at the tug stern. Arrow direction = actual propeller thrust vector. Degree value shown on each arrow. <b style="color:#22c55e">Green</b> = ahead, <b style="color:#f87171">Red</b> = astern.
+        </div>
+      </div>
+
+      <div style="display:flex;gap:10px;align-items:flex-start;background:rgba(30,58,138,0.15);padding:12px;border-radius:8px;border-left:3px solid #3b82f6;">
+        <span style="background:#1e40af;color:#93c5fd;font-size:10px;font-weight:bold;padding:3px 9px;border-radius:12px;white-space:nowrap;flex-shrink:0;margin-top:1px;">STEP 4</span>
+        <div style="color:#cbd5e1;font-size:11px;line-height:1.6;">
+          Monitor <b style="color:#c084fc">YAW RATE</b> in the control panel. If turning, adjust S or P to balance. For straight-ahead towing target <b style="color:#4ade80">YAW = 0°/s</b>.
+        </div>
+      </div>
+
+      <div style="display:flex;gap:10px;align-items:flex-start;background:rgba(30,58,138,0.15);padding:12px;border-radius:8px;border-left:3px solid #3b82f6;">
+        <span style="background:#1e40af;color:#93c5fd;font-size:10px;font-weight:bold;padding:3px 9px;border-radius:12px;white-space:nowrap;flex-shrink:0;margin-top:1px;">STEP 5</span>
+        <div style="color:#cbd5e1;font-size:11px;line-height:1.6;">
+          Use <b style="color:#60a5fa">Combination</b> tab for combined handle control. Set both levers AH 90° then adjust Combination Handle toward STBD 10~13° for straight towing.
+        </div>
+      </div>
+
+      <div style="display:flex;gap:10px;align-items:flex-start;background:rgba(127,29,29,0.25);padding:12px;border-radius:8px;border-left:3px solid #ef4444;">
+        <span style="background:#7f1d1d;color:#fca5a5;font-size:10px;font-weight:bold;padding:3px 9px;border-radius:12px;white-space:nowrap;flex-shrink:0;margin-top:1px;">⚠ CAUTION</span>
+        <div style="color:#fca5a5;font-size:11px;line-height:1.6;">
+          During <b>high-speed towing</b>, use <b>only Steering Lever AS</b> for emergency stops (S: AS 90° / P: AS 30~60°). <b>Do NOT</b> use Combination Handle at high speed — risk of rope snap &amp; bow collision with barge.
+        </div>
+      </div>
+
+    </div>
+    <!-- Key specs bar -->
+    <div style="margin:0 18px 16px;padding:10px 14px;background:rgba(15,35,70,0.6);border-radius:8px;border:1px solid rgba(59,130,246,0.25);">
+      <div style="color:#93c5fd;font-size:10px;font-weight:bold;margin-bottom:6px;">⚓ KEY SPECIFICATIONS</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
+        <div style="color:#94a3b8;font-size:10px;line-height:1.7;">
+          <b style="color:#60a5fa">Barge:</b> 98m × 36m<br>
+          <b style="color:#60a5fa">Tug:</b> 42m × 10m<br>
+          <b style="color:#60a5fa">CoM shift:</b> <span style="color:#f97316">+5m STBD</span>
+        </div>
+        <div style="color:#94a3b8;font-size:10px;line-height:1.7;">
+          <b style="color:#fbbf24">S steering bias:</b> 32° PORT<br>
+          <b style="color:#4ade80">Straight ahead:</b><br>
+          S: AH 75° &nbsp;/&nbsp; P: AH 90°
+        </div>
+        <div style="color:#94a3b8;font-size:10px;line-height:1.7;">
+          <b style="color:#fb923c">Emergency stop:</b><br>
+          S: AS 90° / P: AS 45~60° (mod)<br>
+          S: AS 90° / P: AS 30~50° (high)
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function toggleHelp(){
+  const m=document.getElementById('helpModal');
+  m.style.display=m.style.display==='none'?'flex':'none';
+}
+// Close on backdrop click
+document.getElementById('helpModal').addEventListener('click',function(e){
+  if(e.target===this) this.style.display='none';
+});
+</script>
+</body>
+</html>
